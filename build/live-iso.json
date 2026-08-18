@@ -1,10 +1,15 @@
 {
   "product": "webOwie_nodeOS Live",
-  "status": "running",
+  "status": "success",
   "alpine": "3.24",
   "architecture": "x86_64",
   "source_commit": "7a8108ad46c8090b55e134325df1cdb02d581928",
   "workflow_run_id": "32172086586",
   "run_attempt": "1",
-  "started_at_utc": "2026-08-18T18:38:05Z"
+  "iso": "webOwie_nodeOS-live-x86_64.iso",
+  "sha256": "947abe4ffc00261367c1aee15a1da655ea4de66e80e28c8c6822c365802ba188",
+  "size_bytes": 376438784,
+  "qemu_virtio_network_test": "passed",
+  "finished_at_utc": "2026-08-18T19:02:45Z",
+  "release_tag": "live-latest"
 }
