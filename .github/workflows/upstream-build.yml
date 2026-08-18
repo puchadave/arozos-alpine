@@ -1,0 +1,36 @@
+name: ArozOS upstream compatibility
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  alpine-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout webOwie_nodeOS layer
+        uses: actions/checkout@v4
+
+      - name: Build current ArozOS upstream on Alpine
+        run: |
+          docker run --rm \
+            -v "$PWD:/webowie:ro" \
+            alpine:3.24 \
+            /bin/sh -c '
+              set -eu
+              apk add --no-cache git go make tar ca-certificates
+              git clone --depth=1 https://github.com/tobychui/arozos.git /tmp/arozos
+              cd /tmp/arozos/src
+              go mod download
+              CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /tmp/webowie-nodeos .
+              make web
+              mkdir -p /tmp/runtime
+              tar -xzf dist/web.tar.gz -C /tmp/runtime
+              INSTALL=/tmp/runtime sh /webowie/branding/apply-branding.sh
+              test -f /tmp/runtime/vendor-res/vendor_info.json
+              test -x /tmp/webowie-nodeos
+            '
