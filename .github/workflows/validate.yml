@@ -1,0 +1,24 @@
+name: Validate Alpine installer
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  shell-syntax:
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:3.24
+    steps:
+      - name: Install Git
+        run: apk add --no-cache git
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate POSIX shell syntax
+        run: sh -n installer/install-alpine-lxc.sh
