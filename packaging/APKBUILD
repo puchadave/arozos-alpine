@@ -44,9 +44,3 @@ package() {
 	install -Dm755 "$srcdir/webowie-nodeos.initd" "$pkgdir/etc/init.d/webowie-nodeos"
 	install -Dm644 "$srcdir/webowie-nodeos.confd" "$pkgdir/etc/conf.d/webowie-nodeos"
 }
-
-sha512sums="
-SKIP  webowie-nodeos-runtime.tar.gz
-SKIP  webowie-nodeos.initd
-SKIP  webowie-nodeos.confd
-"

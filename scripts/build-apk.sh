@@ -27,9 +27,6 @@ apk update
 apk add \
   alpine-sdk sudo bash ca-certificates git go make tar curl
 update-ca-certificates
-
-# abuild resolves package runtime dependencies while assembling metadata.
-# Keep the repository indexes available instead of using apk --no-cache here.
 apk update
 
 rm -rf "$WORK"
@@ -78,6 +75,7 @@ chmod 0755 '$WORK/runtime/webowie-nodeos'
 tar -C '$WORK' -czf '$WORK/pkg/webowie-nodeos-runtime.tar.gz' runtime
 
 cd '$WORK/pkg'
+WEBOWIE_PKGVER='$PKGVER' abuild checksum
 abuild-keygen -ain
 WEBOWIE_PKGVER='$PKGVER' abuild -r
 "
