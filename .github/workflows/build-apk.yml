@@ -120,9 +120,9 @@ jobs:
               pgrep -f /usr/bin/webowie-nodeos >/dev/null
 
               apk info -L webowie-nodeos > /tmp/package-files.txt
-              ! grep -Eq '(^|/)(APKBUILD|go.mod|go.sum)$' /tmp/package-files.txt
-              ! grep -Eq '/usr/(local/)?src/' /tmp/package-files.txt
-              ! grep -q '^opt/' /tmp/package-files.txt
+              ! grep -Eq "(^|/)(APKBUILD|go.mod|go.sum)$" /tmp/package-files.txt
+              ! grep -Eq "/usr/(local/)?src/" /tmp/package-files.txt
+              ! grep -q "^opt/" /tmp/package-files.txt
             '
 
       - name: Upload APK artifact
