@@ -78,44 +78,67 @@ jobs:
         run: |
           mkdir -p dist
 
-          docker run --rm --privileged \
+          docker run --rm -i \
+            -e BUILDER_UID="$(id -u)" \
             -v "$PWD:/repo" \
             alpine:3.24 \
-            /bin/sh -ec '
-              apk add --no-cache \
-                alpine-sdk \
-                alpine-conf \
-                syslinux \
-                xorriso \
-                squashfs-tools \
-                grub \
-                mtools \
-                git
+            /bin/sh -s <<'ROOT_SCRIPT'
+          set -eu
 
-              export PACKAGER="webOwie CI <build@webowie.com>"
-              SUDO= abuild-keygen -a -i -n
+          apk add --no-cache \
+            alpine-sdk \
+            alpine-conf \
+            syslinux \
+            xorriso \
+            squashfs-tools \
+            grub \
+            mtools \
+            git
 
-              git clone --depth=1 --branch 3.24-stable \
-                https://github.com/alpinelinux/aports.git /tmp/aports
+          adduser -D -u "$BUILDER_UID" -s /bin/sh builder
+          addgroup builder abuild
+          chown -R builder:builder /repo/dist
 
-              cp /repo/iso/mkimg.webowie_nodeos.sh \
-                /tmp/aports/scripts/mkimg.webowie_nodeos.sh
-              cp /repo/iso/genapkovl-webowie-nodeos.sh \
-                /tmp/aports/scripts/genapkovl-webowie-nodeos.sh
-              chmod 0755 /tmp/aports/scripts/genapkovl-webowie-nodeos.sh
+          cat >/tmp/build-live-iso.sh <<'BUILDER_SCRIPT'
+          #!/bin/sh
+          set -eu
 
-              mkdir -p /tmp/mkimage-work /repo/dist
-              cd /tmp/aports
+          export HOME=/home/builder
+          export PACKAGER="webOwie CI <build@webowie.com>"
 
-              ./scripts/mkimage.sh \
-                --tag 3.24 \
-                --outdir /repo/dist \
-                --workdir /tmp/mkimage-work \
-                --arch x86_64 \
-                --repository https://dl-cdn.alpinelinux.org/alpine/v3.24/main \
-                --repository https://dl-cdn.alpinelinux.org/alpine/v3.24/community \
-                --profile webowie_nodeos
-            '
+          abuild-keygen -a -n
+          KEY="$(find "$HOME/.abuild" -maxdepth 1 -type f -name '*.rsa' | head -n1)"
+          test -n "$KEY"
+          test -f "${KEY}.pub"
+          export PACKAGER_PRIVKEY="$KEY"
+          export PACKAGER_PUBKEY="${KEY}.pub"
+
+          git clone --depth=1 --branch 3.24-stable \
+            https://github.com/alpinelinux/aports.git /tmp/aports
+
+          cp /repo/iso/mkimg.webowie_nodeos.sh \
+            /tmp/aports/scripts/mkimg.webowie_nodeos.sh
+          cp /repo/iso/genapkovl-webowie-nodeos.sh \
+            /tmp/aports/scripts/genapkovl-webowie-nodeos.sh
+          chmod 0755 /tmp/aports/scripts/genapkovl-webowie-nodeos.sh
+
+          mkdir -p /tmp/mkimage-work
+          cd /tmp/aports
+
+          ./scripts/mkimage.sh \
+            --tag 3.24 \
+            --outdir /repo/dist \
+            --workdir /tmp/mkimage-work \
+            --arch x86_64 \
+            --repository https://dl-cdn.alpinelinux.org/alpine/v3.24/main \
+            --repository https://dl-cdn.alpinelinux.org/alpine/v3.24/community \
+            --profile webowie_nodeos
+          BUILDER_SCRIPT
+
+          chown builder:builder /tmp/build-live-iso.sh
+          chmod 0755 /tmp/build-live-iso.sh
+          su builder -c /tmp/build-live-iso.sh
+          ROOT_SCRIPT
 
           ISO="$(find dist -maxdepth 1 -type f -name '*.iso' | head -n1)"
           test -n "$ISO"

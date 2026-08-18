@@ -2,6 +2,7 @@
 set -eu
 PROFILE="${1:-iso/mkimg.webowie_nodeos.sh}"
 OVERLAY="${2:-iso/genapkovl-webowie-nodeos.sh}"
+WORKFLOW="${3:-.github/workflows/build-live-iso.yml}"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
@@ -20,6 +21,10 @@ grep -q 'modprobe virtio_net' "$OVERLAY" || fail "virtio_net preload missing"
 grep -q 'modprobe e1000' "$OVERLAY" || fail "e1000 fallback preload missing"
 grep -q 'modprobe vmxnet3' "$OVERLAY" || fail "vmxnet3 fallback preload missing"
 grep -q '/sys/class/net/' "$OVERLAY" || fail "dynamic NIC discovery missing"
+
+grep -q 'adduser -D -u "$BUILDER_UID" -s /bin/sh builder' "$WORKFLOW" || fail "non-root ISO builder user missing"
+grep -q 'su builder -c /tmp/build-live-iso.sh' "$WORKFLOW" || fail "mkimage is not executed as builder user"
+grep -q 'abuild-keygen -a -n' "$WORKFLOW" || fail "builder signing key generation missing"
 
 if grep -qi 'multiboot' "$PROFILE" "$OVERLAY"; then
   fail "multiboot configuration must not be present"
