@@ -10,7 +10,11 @@ on:
       - '.github/workflows/build-live-iso.yml'
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: webowie-nodeos-live-iso
+  cancel-in-progress: true
 
 jobs:
   build-live-iso:
@@ -66,7 +70,7 @@ jobs:
               cd /tmp/aports
 
               ./scripts/mkimage.sh \
-                --tag v3.24 \
+                --tag 3.24 \
                 --outdir /repo/dist \
                 --workdir /tmp/mkimage-work \
                 --arch x86_64 \
@@ -107,7 +111,7 @@ jobs:
           test "$QEMU_RC" -eq 0 -o "$QEMU_RC" -eq 124
           grep -q 'Detected NIC:' qemu-live.log
 
-      - name: Upload live ISO
+      - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: webOwie_nodeOS-live-x86_64
@@ -117,3 +121,22 @@ jobs:
             qemu-live.log
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish verified live ISO release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete live-latest \
+            --repo "$GITHUB_REPOSITORY" \
+            --cleanup-tag \
+            --yes 2>/dev/null || true
+
+          gh release create live-latest \
+            dist/webOwie_nodeOS-live-x86_64.iso \
+            dist/webOwie_nodeOS-live-x86_64.iso.sha256 \
+            qemu-live.log \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "webOwie_nodeOS Live - Alpine 3.24" \
+            --notes "Single x86_64 Alpine Linux 3.24 live ISO for webOwie_nodeOS. Network support is verified by booting the generated image in QEMU with a VirtIO NIC before publication." \
+            --prerelease
