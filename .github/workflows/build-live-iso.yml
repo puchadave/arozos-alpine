@@ -140,3 +140,46 @@ jobs:
             --title "webOwie_nodeOS Live - Alpine 3.24" \
             --notes "Single x86_64 Alpine Linux 3.24 live ISO for webOwie_nodeOS. Network support is verified by booting the generated image in QEMU with a VirtIO NIC before publication." \
             --prerelease
+
+      - name: Record verified build provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ISO_SHA256="$(cut -d' ' -f1 dist/webOwie_nodeOS-live-x86_64.iso.sha256)"
+          ISO_SIZE="$(stat -c '%s' dist/webOwie_nodeOS-live-x86_64.iso)"
+          BUILT_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+          cat >/tmp/live-iso.json <<EOF
+          {
+            "product": "webOwie_nodeOS Live",
+            "alpine": "3.24",
+            "architecture": "x86_64",
+            "source_commit": "$GITHUB_SHA",
+            "iso": "webOwie_nodeOS-live-x86_64.iso",
+            "sha256": "$ISO_SHA256",
+            "size_bytes": $ISO_SIZE,
+            "qemu_virtio_network_test": "passed",
+            "built_at_utc": "$BUILT_AT",
+            "release_tag": "live-latest"
+          }
+          EOF
+
+          CONTENT="$(base64 -w0 /tmp/live-iso.json)"
+          CURRENT_SHA="$(gh api \
+            "repos/$GITHUB_REPOSITORY/contents/build/live-iso.json?ref=main" \
+            --jq '.sha' 2>/dev/null || true)"
+
+          if [ -n "$CURRENT_SHA" ]; then
+            gh api --method PUT \
+              "repos/$GITHUB_REPOSITORY/contents/build/live-iso.json" \
+              -f message="ci: record verified live ISO build" \
+              -f content="$CONTENT" \
+              -f sha="$CURRENT_SHA" \
+              -f branch="main" >/dev/null
+          else
+            gh api --method PUT \
+              "repos/$GITHUB_REPOSITORY/contents/build/live-iso.json" \
+              -f message="ci: record verified live ISO build" \
+              -f content="$CONTENT" \
+              -f branch="main" >/dev/null
+          fi
