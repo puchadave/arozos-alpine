@@ -1,0 +1,119 @@
+name: Build webOwie_nodeOS Live ISO
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'iso/**'
+      - 'tests/iso-profile-smoke.sh'
+      - '.github/workflows/build-live-iso.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-live-iso:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate ISO scripts
+        run: |
+          docker run --rm \
+            -v "$PWD:/repo:ro" \
+            -w /repo \
+            alpine:3.24 \
+            /bin/sh -ec '
+              sh -n iso/mkimg.webowie_nodeos.sh
+              sh -n iso/genapkovl-webowie-nodeos.sh
+              sh tests/iso-profile-smoke.sh
+            '
+
+      - name: Build Alpine 3.24 live ISO
+        run: |
+          mkdir -p dist
+
+          docker run --rm --privileged \
+            -v "$PWD:/repo" \
+            alpine:3.24 \
+            /bin/sh -ec '
+              apk add --no-cache \
+                alpine-sdk \
+                alpine-conf \
+                syslinux \
+                xorriso \
+                squashfs-tools \
+                grub \
+                mtools \
+                git
+
+              export PACKAGER="webOwie CI <build@webowie.com>"
+              SUDO= abuild-keygen -a -i -n
+
+              git clone --depth=1 --branch 3.24-stable \
+                https://github.com/alpinelinux/aports.git /tmp/aports
+
+              cp /repo/iso/mkimg.webowie_nodeos.sh \
+                /tmp/aports/scripts/mkimg.webowie_nodeos.sh
+              cp /repo/iso/genapkovl-webowie-nodeos.sh \
+                /tmp/aports/scripts/genapkovl-webowie-nodeos.sh
+              chmod 0755 /tmp/aports/scripts/genapkovl-webowie-nodeos.sh
+
+              mkdir -p /tmp/mkimage-work /repo/dist
+              cd /tmp/aports
+
+              ./scripts/mkimage.sh \
+                --tag v3.24 \
+                --outdir /repo/dist \
+                --workdir /tmp/mkimage-work \
+                --arch x86_64 \
+                --repository https://dl-cdn.alpinelinux.org/alpine/v3.24/main \
+                --repository https://dl-cdn.alpinelinux.org/alpine/v3.24/community \
+                --profile webowie_nodeos
+            '
+
+          ISO="$(find dist -maxdepth 1 -type f -name '*.iso' | head -n1)"
+          test -n "$ISO"
+          test -s "$ISO"
+          mv "$ISO" dist/webOwie_nodeOS-live-x86_64.iso
+          sha256sum dist/webOwie_nodeOS-live-x86_64.iso \
+            > dist/webOwie_nodeOS-live-x86_64.iso.sha256
+
+      - name: Install QEMU smoke-test dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86
+
+      - name: Boot ISO and verify virtual NIC
+        run: |
+          set +e
+          timeout 120s qemu-system-x86_64 \
+            -m 1024 \
+            -cdrom dist/webOwie_nodeOS-live-x86_64.iso \
+            -boot d \
+            -display none \
+            -serial stdio \
+            -monitor none \
+            -netdev user,id=net0 \
+            -device virtio-net-pci,netdev=net0 \
+            > qemu-live.log 2>&1
+          QEMU_RC=$?
+          set -e
+
+          cat qemu-live.log
+          test "$QEMU_RC" -eq 0 -o "$QEMU_RC" -eq 124
+          grep -q 'Detected NIC:' qemu-live.log
+
+      - name: Upload live ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: webOwie_nodeOS-live-x86_64
+          path: |
+            dist/webOwie_nodeOS-live-x86_64.iso
+            dist/webOwie_nodeOS-live-x86_64.iso.sha256
+            qemu-live.log
+          if-no-files-found: error
+          retention-days: 14
