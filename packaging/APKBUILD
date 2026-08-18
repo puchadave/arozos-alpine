@@ -38,9 +38,15 @@ source="
 builddir="$srcdir"
 
 package() {
-	install -d "$pkgdir/opt/webOwie_nodeOS"
-	cp -a "$srcdir/runtime/." "$pkgdir/opt/webOwie_nodeOS/"
-	install -d "$pkgdir/opt/webOwie_nodeOS/files" "$pkgdir/opt/webOwie_nodeOS/tmp"
+	# Executable belongs in /usr/bin. ArozOS expects web/ and system/ relative
+	# to its working directory, so the product runtime lives in /var/lib.
+	install -Dm755 "$srcdir/runtime/webowie-nodeos" "$pkgdir/usr/bin/webowie-nodeos"
+
+	install -d "$pkgdir/var/lib/webowie-nodeos"
+	cp -a "$srcdir/runtime/." "$pkgdir/var/lib/webowie-nodeos/"
+	rm -f "$pkgdir/var/lib/webowie-nodeos/webowie-nodeos"
+	install -d "$pkgdir/var/lib/webowie-nodeos/files" "$pkgdir/var/lib/webowie-nodeos/tmp"
+
 	install -Dm755 "$srcdir/webowie-nodeos.initd" "$pkgdir/etc/init.d/webowie-nodeos"
 	install -Dm644 "$srcdir/webowie-nodeos.confd" "$pkgdir/etc/conf.d/webowie-nodeos"
 }

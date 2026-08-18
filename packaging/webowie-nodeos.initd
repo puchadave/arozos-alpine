@@ -3,10 +3,10 @@
 name="webOwie_nodeOS"
 description="webOwie_nodeOS Alpine node environment"
 
-command="/opt/webOwie_nodeOS/webowie-nodeos"
+command="/usr/bin/webowie-nodeos"
 command_args="${WEBOWIE_NODEOS_OPTS}"
 command_user="webowie:webowie"
-directory="/opt/webOwie_nodeOS"
+directory="/var/lib/webowie-nodeos"
 command_background="yes"
 pidfile="/run/${RC_SVCNAME}.pid"
 
@@ -14,8 +14,9 @@ output_log="/var/log/webowie-nodeos.log"
 error_log="/var/log/webowie-nodeos.log"
 
 start_pre() {
-	checkpath -d -o webowie:webowie -m 0755 /opt/webOwie_nodeOS/files
-	checkpath -d -o webowie:webowie -m 0755 /opt/webOwie_nodeOS/tmp
+	checkpath -d -o webowie:webowie -m 0755 /var/lib/webowie-nodeos
+	checkpath -d -o webowie:webowie -m 0755 /var/lib/webowie-nodeos/files
+	checkpath -d -o webowie:webowie -m 0755 /var/lib/webowie-nodeos/tmp
 	checkpath -f -o webowie:webowie -m 0644 /var/log/webowie-nodeos.log
 }
 

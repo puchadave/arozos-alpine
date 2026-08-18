@@ -45,7 +45,6 @@ jobs:
             "started_at_utc": "$STARTED_AT"
           }
           EOF
-
           CONTENT="$(base64 -w0 /tmp/apk-build.json)"
           CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/contents/build/apk.json?ref=main" --jq '.sha' 2>/dev/null || true)"
           if [ -n "$CURRENT_SHA" ]; then
@@ -69,6 +68,9 @@ jobs:
               sh -n packaging/webowie-nodeos.post-install
               sh -n packaging/webowie-nodeos.pre-deinstall
               sh -n packaging/webowie-nodeos.initd
+              grep -q "/usr/bin/webowie-nodeos" packaging/webowie-nodeos.initd
+              grep -q "/var/lib/webowie-nodeos" packaging/webowie-nodeos.initd
+              ! grep -R -q "/opt/webOwie_nodeOS" packaging
             '
 
       - name: Build production APK
@@ -88,10 +90,10 @@ jobs:
             /bin/sh -ec '
               apk add --no-cache --allow-untrusted /dist/webowie-nodeos-x86_64.apk
 
-              test -x /opt/webOwie_nodeOS/webowie-nodeos
-              test -d /opt/webOwie_nodeOS/web
-              test -d /opt/webOwie_nodeOS/system
-              test -f /opt/webOwie_nodeOS/vendor-res/vendor_info.json
+              test -x /usr/bin/webowie-nodeos
+              test -d /var/lib/webowie-nodeos/web
+              test -d /var/lib/webowie-nodeos/system
+              test -f /var/lib/webowie-nodeos/vendor-res/vendor_info.json
               test -x /etc/init.d/webowie-nodeos
               test -f /etc/conf.d/webowie-nodeos
               rc-update show default | grep -q webowie-nodeos
@@ -101,7 +103,7 @@ jobs:
               rc-service webowie-nodeos restart
 
               ok=0
-              for i in $(seq 1 20); do
+              for i in $(seq 1 30); do
                 if wget -qO- http://127.0.0.1:8080/ >/dev/null 2>&1; then
                   ok=1
                   break
@@ -115,11 +117,12 @@ jobs:
                 exit 1
               fi
 
-              pgrep -f /opt/webOwie_nodeOS/webowie-nodeos >/dev/null
+              pgrep -f /usr/bin/webowie-nodeos >/dev/null
 
               apk info -L webowie-nodeos > /tmp/package-files.txt
               ! grep -Eq '(^|/)(APKBUILD|go.mod|go.sum)$' /tmp/package-files.txt
               ! grep -Eq '/usr/(local/)?src/' /tmp/package-files.txt
+              ! grep -q '^opt/' /tmp/package-files.txt
             '
 
       - name: Upload APK artifact
@@ -194,7 +197,6 @@ jobs:
           }
           EOF
           fi
-
           CONTENT="$(base64 -w0 /tmp/apk-build.json)"
           CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/contents/build/apk.json?ref=main" --jq '.sha' 2>/dev/null || true)"
           if [ -n "$CURRENT_SHA" ]; then
