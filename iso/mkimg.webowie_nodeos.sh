@@ -5,6 +5,7 @@ profile_webowie_nodeos() {
     desc="Alpine Linux 3.24 live installer and recovery environment for webOwie_nodeOS"
     profile_abbrev="webowie"
     image_name="webOwie_nodeOS-live"
+    hostname="webowie-nodeos-live"
     arch="x86_64"
     output_format="iso"
     image_ext="iso"
@@ -32,5 +33,5 @@ profile_webowie_nodeos() {
         ethtool \
         openssh"
 
-    apkovl="genapkovl-webowie-nodeos.sh"
+    apkovl="scripts/genapkovl-webowie-nodeos.sh"
 }

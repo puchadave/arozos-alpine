@@ -7,10 +7,11 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 grep -q 'profile_webowie_nodeos()' "$PROFILE" || fail "custom ISO profile missing"
 grep -q 'profile_standard' "$PROFILE" || fail "ISO must inherit Alpine standard profile"
+grep -q 'hostname="webowie-nodeos-live"' "$PROFILE" || fail "live hostname missing"
 grep -q 'arch="x86_64"' "$PROFILE" || fail "ISO must be x86_64-only"
 grep -q 'net-tools' "$PROFILE" || fail "net-tools not included on ISO"
 grep -q 'iproute2' "$PROFILE" || fail "iproute2 not included on ISO"
-grep -q 'apkovl="genapkovl-webowie-nodeos.sh"' "$PROFILE" || fail "custom apkovl not wired"
+grep -q 'apkovl="scripts/genapkovl-webowie-nodeos.sh"' "$PROFILE" || fail "custom apkovl not wired"
 
 grep -q '^net-tools$' "$OVERLAY" || fail "net-tools not installed in live root"
 grep -q '^iproute2$' "$OVERLAY" || fail "iproute2 not installed in live root"
