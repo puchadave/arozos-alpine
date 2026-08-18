@@ -19,11 +19,15 @@ jobs:
         run: |
           docker run --rm \
             -v "$PWD:/repo:ro" \
+            -w /repo \
             alpine:3.24 \
             /bin/sh -c '
               set -eu
-              sh -n /repo/installer/install-webowie-nodeos.sh
-              sh -n /repo/installer/install-alpine-lxc.sh
-              sh -n /repo/branding/apply-branding.sh
-              sh -n /repo/scripts/update-webowie-nodeos.sh
+              sh -n installer/install-webowie-nodeos.sh
+              sh -n installer/install-alpine-lxc.sh
+              sh -n branding/apply-branding.sh
+              sh -n scripts/update-webowie-nodeos.sh
+              sh -n iso/mkimg.webowie_nodeos.sh
+              sh -n iso/genapkovl-webowie-nodeos.sh
+              sh tests/iso-profile-smoke.sh
             '
