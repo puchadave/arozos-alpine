@@ -1,0 +1,10 @@
+{
+  "product": "webOwie_nodeOS Live",
+  "status": "running",
+  "alpine": "3.24",
+  "architecture": "x86_64",
+  "source_commit": "3e49417087cb329ae6e175ab889b2c570d6e7018",
+  "workflow_run_id": "32171721027",
+  "run_attempt": "1",
+  "started_at_utc": "2026-08-18T18:34:10Z"
+}
