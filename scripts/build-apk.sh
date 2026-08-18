@@ -71,21 +71,18 @@ cat >'$WORK/runtime/vendor-res/upstream.json' <<EOF_UPSTREAM
 }
 EOF_UPSTREAM
 
-# The upstream web/system bundle can contain helper executables for multiple
-# CPU architectures. A native x86_64 Alpine package must not expose ARM or
-# other foreign ELF binaries to abuild dependency tracing.
-echo 'Scanning runtime for foreign-architecture ELF files'
+# Keep the Go core we compile for Alpine and remove every prebuilt ELF helper
+# shipped inside the upstream web/system bundle. Those helpers target mixed
+# architectures and/or glibc. The production node relies on Alpine packages
+# for external utilities instead of opaque foreign binaries.
+echo 'Scanning runtime for bundled ELF helper binaries'
 find '$WORK/runtime' -type f | while IFS= read -r candidate; do
+  [ \"\$candidate\" = '$WORK/runtime/webowie-nodeos' ] && continue
   desc=\$(file -b \"\$candidate\" 2>/dev/null || true)
   case \"\$desc\" in
     *ELF*)
-      case \"\$desc\" in
-        *x86-64*) ;;
-        *)
-          echo \"Removing non-x86_64 ELF: \$candidate (\$desc)\"
-          rm -f \"\$candidate\"
-          ;;
-      esac
+      echo \"Removing bundled ELF helper: \$candidate (\$desc)\"
+      rm -f \"\$candidate\"
       ;;
   esac
 done
