@@ -28,6 +28,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Mark APK build running
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          STARTED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          cat >/tmp/apk-build.json <<EOF
+          {
+            "product": "webOwie_nodeOS",
+            "artifact": "webowie-nodeos-x86_64.apk",
+            "status": "running",
+            "alpine": "3.24",
+            "architecture": "x86_64",
+            "source_commit": "$GITHUB_SHA",
+            "workflow_run_id": "$GITHUB_RUN_ID",
+            "started_at_utc": "$STARTED_AT"
+          }
+          EOF
+
+          CONTENT="$(base64 -w0 /tmp/apk-build.json)"
+          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/contents/build/apk.json?ref=main" --jq '.sha' 2>/dev/null || true)"
+          if [ -n "$CURRENT_SHA" ]; then
+            gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/build/apk.json" \
+              -f message="ci: mark APK build running" -f content="$CONTENT" -f sha="$CURRENT_SHA" -f branch="main" >/dev/null
+          else
+            gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/build/apk.json" \
+              -f message="ci: mark APK build running" -f content="$CONTENT" -f branch="main" >/dev/null
+          fi
+
       - name: Validate package scripts
         run: |
           docker run --rm \
@@ -121,4 +149,58 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "webOwie_nodeOS APK - Alpine 3.24 x86_64" \
-            --notes "Production Alpine APK for webOwie_nodeOS. The package contains only runtime files, web/system/vendor resources, OpenRC service files and configuration. Go and make are build-time only. The generated APK is installed into a clean Alpine 3.24 container and HTTP-smoke-tested before publication."
+            --notes "Production Alpine APK for webOwie_nodeOS. Runtime only; Go and make are build-time only. The package is installed into clean Alpine 3.24, OpenRC is started, and HTTP port 8080 is smoke-tested before publication."
+
+      - name: Record APK build result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          FINISHED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          if [ "$JOB_STATUS" = "success" ] && [ -s dist/webowie-nodeos-x86_64.apk ]; then
+            APK_SHA256="$(cut -d' ' -f1 dist/webowie-nodeos-x86_64.apk.sha256)"
+            APK_SIZE="$(stat -c '%s' dist/webowie-nodeos-x86_64.apk)"
+            PKGVER="$(cat dist/webowie-nodeos-version.txt)"
+            cat >/tmp/apk-build.json <<EOF
+          {
+            "product": "webOwie_nodeOS",
+            "artifact": "webowie-nodeos-x86_64.apk",
+            "status": "success",
+            "alpine": "3.24",
+            "architecture": "x86_64",
+            "package_version": "$PKGVER",
+            "source_commit": "$GITHUB_SHA",
+            "workflow_run_id": "$GITHUB_RUN_ID",
+            "sha256": "$APK_SHA256",
+            "size_bytes": $APK_SIZE,
+            "openrc_test": "passed",
+            "http_8080_test": "passed",
+            "release_tag": "apk-latest",
+            "finished_at_utc": "$FINISHED_AT"
+          }
+          EOF
+          else
+            cat >/tmp/apk-build.json <<EOF
+          {
+            "product": "webOwie_nodeOS",
+            "artifact": "webowie-nodeos-x86_64.apk",
+            "status": "failure",
+            "alpine": "3.24",
+            "architecture": "x86_64",
+            "source_commit": "$GITHUB_SHA",
+            "workflow_run_id": "$GITHUB_RUN_ID",
+            "finished_at_utc": "$FINISHED_AT"
+          }
+          EOF
+          fi
+
+          CONTENT="$(base64 -w0 /tmp/apk-build.json)"
+          CURRENT_SHA="$(gh api "repos/$GITHUB_REPOSITORY/contents/build/apk.json?ref=main" --jq '.sha' 2>/dev/null || true)"
+          if [ -n "$CURRENT_SHA" ]; then
+            gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/build/apk.json" \
+              -f message="ci: record APK build result" -f content="$CONTENT" -f sha="$CURRENT_SHA" -f branch="main" >/dev/null
+          else
+            gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/build/apk.json" \
+              -f message="ci: record APK build result" -f content="$CONTENT" -f branch="main" >/dev/null
+          fi
