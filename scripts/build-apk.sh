@@ -18,9 +18,19 @@ WORK="${WORK:-/tmp/webowie-nodeos-apk}"
   exit 1
 }
 
-apk add --no-cache \
+cat >/etc/apk/repositories <<'EOF_REPOS'
+https://dl-cdn.alpinelinux.org/alpine/v3.24/main
+https://dl-cdn.alpinelinux.org/alpine/v3.24/community
+EOF_REPOS
+
+apk update
+apk add \
   alpine-sdk sudo bash ca-certificates git go make tar curl
 update-ca-certificates
+
+# abuild resolves package runtime dependencies while assembling metadata.
+# Keep the repository indexes available instead of using apk --no-cache here.
+apk update
 
 rm -rf "$WORK"
 mkdir -p "$WORK" "$DIST"
