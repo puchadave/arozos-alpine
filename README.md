@@ -1,57 +1,105 @@
-# ArozOS Alpine
+# webOwie_nodeOS
 
-Native **ArozOS deployment for Alpine Linux and Proxmox LXC**.
+**Alpine-native node operating environment for Proxmox LXC, powered by ArozOS.**
 
-This repository provides an Alpine/OpenRC installation path for [tobychui/arozos](https://github.com/tobychui/arozos) without Docker, systemd, or Debian-specific host assumptions.
+`webOwie_nodeOS` is installed exclusively from this repository. During installation the current ArozOS upstream source is fetched, compiled natively for Alpine Linux, and then transformed by the webOwie branding and deployment layer.
 
-## Target
+## Architecture
 
-- Alpine Linux 3.24+
-- Proxmox VE LXC
-- OpenRC
-- native Go build
-- unprivileged LXC recommended
-- no Docker required
+```text
+puchadave/arozos-alpine
+        |
+        | webOwie installer + branding + Alpine integration
+        v
+ArozOS upstream source
+        |
+        | native Go build
+        v
+webOwie_nodeOS runtime
+        |
+        +-- Alpine Linux
+        +-- OpenRC
+        +-- Proxmox LXC
+        +-- webOwie branding/vendor layer
+```
+
+ArozOS remains the upstream engine. `webOwie_nodeOS` remains our product and deployment layer.
 
 ## Quick install
 
-Run as `root` inside a fresh Alpine LXC:
+Run as `root` inside a fresh Alpine Linux 3.24+ LXC:
 
 ```sh
-wget -O /root/install-arozos-alpine.sh \
-  https://raw.githubusercontent.com/puchadave/arozos-alpine/main/installer/install-alpine-lxc.sh
-chmod +x /root/install-arozos-alpine.sh
-/root/install-arozos-alpine.sh
+curl -fsSL \
+  https://raw.githubusercontent.com/puchadave/arozos-alpine/main/installer/install-webowie-nodeos.sh \
+  -o /root/install-webowie-nodeos.sh
+
+chmod +x /root/install-webowie-nodeos.sh
+/root/install-webowie-nodeos.sh
 ```
 
-After installation, open:
+After installation:
 
 ```text
 http://LXC-IP:8080/
 ```
 
-## Optional configuration
+Service management:
 
 ```sh
-PORT=8088 AROZ_HOSTNAME=storage /root/install-arozos-alpine.sh
+rc-service webowie-nodeos status
+rc-service webowie-nodeos restart
+rc-service webowie-nodeos stop
 ```
 
-The installer accepts these environment overrides:
+Runtime location:
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `REPO` | `https://github.com/tobychui/arozos.git` | ArozOS source repository |
-| `REF` | `master` | ArozOS branch/tag/ref |
-| `SRC` | `/usr/local/src/arozos` | build source directory |
-| `INSTALL` | `/opt/arozos` | runtime directory |
-| `PORT` | `8080` | HTTP port |
-| `AROZ_HOSTNAME` | `arozos` | ArozOS hostname |
-| `SERVICE_USER` | `arozos` | OpenRC service user |
-| `SERVICE_GROUP` | `arozos` | OpenRC service group |
+```text
+/opt/webOwie_nodeOS
+```
+
+## Upstream updates
+
+Installed nodes can rebuild from the current ArozOS upstream while preserving mutable node state and reapplying the webOwie branding layer:
+
+```sh
+curl -fsSL \
+  https://raw.githubusercontent.com/puchadave/arozos-alpine/main/scripts/update-webowie-nodeos.sh \
+  -o /root/update-webowie-nodeos.sh
+
+chmod +x /root/update-webowie-nodeos.sh
+/root/update-webowie-nodeos.sh
+```
+
+The installed upstream commit is recorded in:
+
+```text
+/opt/webOwie_nodeOS/vendor-res/upstream.json
+```
+
+## Branding layer
+
+The project uses the vendor-extension hooks already present in ArozOS where possible and applies narrowly scoped runtime branding where required.
+
+Brand identity:
+
+```text
+Product: webOwie_nodeOS
+Vendor:  webOwie
+Base:    ArozOS
+Host OS: Alpine Linux
+Init:    OpenRC
+```
+
+The branding script lives at:
+
+```text
+branding/apply-branding.sh
+```
 
 ## LXC-safe defaults
 
-ArozOS contains Debian-oriented package and host-management functions. The Alpine service therefore disables them by default:
+The service disables host-management functions that are inappropriate inside an unprivileged Proxmox LXC:
 
 ```text
 -allow_pkg_install=false
@@ -62,36 +110,42 @@ ArozOS contains Debian-oriented package and host-management functions. The Alpin
 -arozcast_turn=false
 ```
 
-The installer also reduces the default ArozOS buffer pool for a lightweight LXC deployment.
-
-## Service management
+## Optional installer variables
 
 ```sh
-rc-service arozos status
-rc-service arozos restart
-rc-service arozos stop
+PORT=8088 \
+NODE_HOSTNAME=webOwie-storage-01 \
+/root/install-webowie-nodeos.sh
 ```
+
+Important variables:
+
+| Variable | Default |
+|---|---|
+| `UPSTREAM_REPO` | `https://github.com/tobychui/arozos.git` |
+| `UPSTREAM_REF` | `master` |
+| `INSTALL` | `/opt/webOwie_nodeOS` |
+| `PORT` | `8080` |
+| `NODE_HOSTNAME` | `webOwie-nodeOS` |
+| `SERVICE_NAME` | `webowie-nodeos` |
+| `SERVICE_USER` | `webowie` |
 
 ## Storage on Proxmox
 
-Prefer mounting storage on the Proxmox host and exposing it to the LXC as a bind mount:
+Prefer host-managed storage exposed to the LXC through a bind mount:
 
 ```sh
 pct set 123 -mp0 /srv/storage,mp=/srv/storage
 pct restart 123
 ```
 
-Then configure `/srv/storage` as a local Storage Pool inside ArozOS.
+Then add `/srv/storage` as a local storage pool in the webOwie_nodeOS interface.
 
-## Documentation
+## Upstream and licensing
 
-See [`docs/ALPINE-LXC.md`](docs/ALPINE-LXC.md).
+ArozOS is developed by **tobychui / IMUSLAB** and licensed under GNU GPL-3.0.
 
-## Upstream
+- Upstream project: https://github.com/tobychui/arozos
+- webOwie_nodeOS deployment layer: https://github.com/puchadave/arozos-alpine
 
-ArozOS is developed by **tobychui / IMUSLAB**:
-
-- Upstream: https://github.com/tobychui/arozos
-- Upstream license: GPL-3.0
-
-This repository adds an Alpine Linux/OpenRC deployment layer and does not replace the upstream project.
+The rebranding does not remove upstream attribution or licensing notices.
