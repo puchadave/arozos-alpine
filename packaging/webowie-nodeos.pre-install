@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+if ! grep -q '^webowie:' /etc/group 2>/dev/null; then
+	addgroup -S webowie
+fi
+
+if ! id webowie >/dev/null 2>&1; then
+	adduser -S -D -H -h /opt/webOwie_nodeOS -s /sbin/nologin -G webowie webowie
+fi
+
+exit 0

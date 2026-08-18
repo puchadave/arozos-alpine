@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+
+rc-service webowie-nodeos stop >/dev/null 2>&1 || true
+rc-update del webowie-nodeos default >/dev/null 2>&1 || true
+
+exit 0

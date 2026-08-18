@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+chown -R webowie:webowie /opt/webOwie_nodeOS
+chmod 0755 /opt/webOwie_nodeOS/webowie-nodeos
+
+rc-update add webowie-nodeos default >/dev/null 2>&1 || true
+rc-service webowie-nodeos restart >/dev/null 2>&1 || rc-service webowie-nodeos start >/dev/null 2>&1 || true
+
+exit 0

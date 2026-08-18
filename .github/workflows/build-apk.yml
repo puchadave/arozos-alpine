@@ -1,0 +1,124 @@
+name: Build webOwie_nodeOS APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'packaging/**'
+      - 'branding/**'
+      - 'scripts/build-apk.sh'
+      - 'installer/install-webowie-nodeos.sh'
+      - '.github/workflows/build-apk.yml'
+  schedule:
+    - cron: '27 4 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: webowie-nodeos-apk
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate package scripts
+        run: |
+          docker run --rm \
+            -v "$PWD:/repo:ro" \
+            -w /repo \
+            alpine:3.24 \
+            /bin/sh -ec '
+              sh -n scripts/build-apk.sh
+              sh -n packaging/APKBUILD
+              sh -n packaging/webowie-nodeos.pre-install
+              sh -n packaging/webowie-nodeos.post-install
+              sh -n packaging/webowie-nodeos.pre-deinstall
+              sh -n packaging/webowie-nodeos.initd
+            '
+
+      - name: Build production APK
+        run: |
+          mkdir -p dist
+          docker run --rm \
+            -v "$PWD:/repo" \
+            -w /repo \
+            alpine:3.24 \
+            /bin/sh scripts/build-apk.sh
+
+      - name: Install APK in clean Alpine and verify service
+        run: |
+          docker run --rm --privileged \
+            -v "$PWD/dist:/dist:ro" \
+            alpine:3.24 \
+            /bin/sh -ec '
+              apk add --no-cache --allow-untrusted /dist/webowie-nodeos-x86_64.apk
+
+              test -x /opt/webOwie_nodeOS/webowie-nodeos
+              test -d /opt/webOwie_nodeOS/web
+              test -d /opt/webOwie_nodeOS/system
+              test -f /opt/webOwie_nodeOS/vendor-res/vendor_info.json
+              test -x /etc/init.d/webowie-nodeos
+              test -f /etc/conf.d/webowie-nodeos
+              rc-update show default | grep -q webowie-nodeos
+
+              mkdir -p /run/openrc
+              touch /run/openrc/softlevel
+              rc-service webowie-nodeos restart
+
+              ok=0
+              for i in $(seq 1 20); do
+                if wget -qO- http://127.0.0.1:8080/ >/dev/null 2>&1; then
+                  ok=1
+                  break
+                fi
+                sleep 1
+              done
+
+              if [ "$ok" -ne 1 ]; then
+                echo "webOwie_nodeOS failed HTTP smoke test" >&2
+                cat /var/log/webowie-nodeos.log 2>/dev/null || true
+                exit 1
+              fi
+
+              pgrep -f /opt/webOwie_nodeOS/webowie-nodeos >/dev/null
+
+              apk info -L webowie-nodeos > /tmp/package-files.txt
+              ! grep -Eq '(^|/)(APKBUILD|go.mod|go.sum)$' /tmp/package-files.txt
+              ! grep -Eq '/usr/(local/)?src/' /tmp/package-files.txt
+            '
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: webowie-nodeos-x86_64
+          path: |
+            dist/webowie-nodeos-x86_64.apk
+            dist/webowie-nodeos-x86_64.apk.sha256
+            dist/webowie-nodeos-version.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish installable APK release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-latest \
+            --repo "$GITHUB_REPOSITORY" \
+            --cleanup-tag \
+            --yes 2>/dev/null || true
+
+          gh release create apk-latest \
+            dist/webowie-nodeos-x86_64.apk \
+            dist/webowie-nodeos-x86_64.apk.sha256 \
+            dist/webowie-nodeos-version.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "webOwie_nodeOS APK - Alpine 3.24 x86_64" \
+            --notes "Production Alpine APK for webOwie_nodeOS. The package contains only runtime files, web/system/vendor resources, OpenRC service files and configuration. Go and make are build-time only. The generated APK is installed into a clean Alpine 3.24 container and HTTP-smoke-tested before publication."

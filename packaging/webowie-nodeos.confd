@@ -1,0 +1,2 @@
+# webOwie_nodeOS runtime options
+WEBOWIE_NODEOS_OPTS="-host=0.0.0.0 -port=8080 -hostname=webOwie-nodeOS -allow_pkg_install=false -enable_hwman=false -enable_pwman=false -enable_docker=false -allow_upnp=false -arozcast_turn=false -max_upload_size=1024 -buffpool_size=256 -upload_buf=25 -root=/opt/webOwie_nodeOS/files -tmp=/opt/webOwie_nodeOS/tmp"

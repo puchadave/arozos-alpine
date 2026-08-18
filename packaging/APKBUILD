@@ -1,0 +1,52 @@
+# Maintainer: webOwie <build@webowie.com>
+pkgname=webowie-nodeos
+pkgver="${WEBOWIE_PKGVER:-0.1.0}"
+pkgrel=0
+pkgdesc="webOwie_nodeOS Alpine-native node operating environment"
+url="https://github.com/puchadave/arozos-alpine"
+arch="x86_64"
+license="GPL-3.0-only"
+depends="
+	openrc
+	sudo
+	bash
+	ca-certificates
+	curl
+	wget
+	git
+	tar
+	ffmpeg
+	net-tools
+	iproute2
+	procps-ng
+	util-linux
+	coreutils
+	findutils
+	tzdata
+	shadow
+	cifs-utils
+	nfs-utils
+	fuse3
+"
+options="!check !strip"
+install="$pkgname.pre-install $pkgname.post-install $pkgname.pre-deinstall"
+source="
+	webowie-nodeos-runtime.tar.gz
+	webowie-nodeos.initd
+	webowie-nodeos.confd
+"
+builddir="$srcdir"
+
+package() {
+	install -d "$pkgdir/opt/webOwie_nodeOS"
+	cp -a "$srcdir/runtime/." "$pkgdir/opt/webOwie_nodeOS/"
+	install -d "$pkgdir/opt/webOwie_nodeOS/files" "$pkgdir/opt/webOwie_nodeOS/tmp"
+	install -Dm755 "$srcdir/webowie-nodeos.initd" "$pkgdir/etc/init.d/webowie-nodeos"
+	install -Dm644 "$srcdir/webowie-nodeos.confd" "$pkgdir/etc/conf.d/webowie-nodeos"
+}
+
+sha512sums="
+SKIP  webowie-nodeos-runtime.tar.gz
+SKIP  webowie-nodeos.initd
+SKIP  webowie-nodeos.confd
+"
