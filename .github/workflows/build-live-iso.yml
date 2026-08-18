@@ -24,6 +24,44 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Mark live ISO build running
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          STARTED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          cat >/tmp/live-iso.json <<EOF
+          {
+            "product": "webOwie_nodeOS Live",
+            "status": "running",
+            "alpine": "3.24",
+            "architecture": "x86_64",
+            "source_commit": "$GITHUB_SHA",
+            "workflow_run_id": "$GITHUB_RUN_ID",
+            "run_attempt": "$GITHUB_RUN_ATTEMPT",
+            "started_at_utc": "$STARTED_AT"
+          }
+          EOF
+
+          CONTENT="$(base64 -w0 /tmp/live-iso.json)"
+          CURRENT_SHA="$(gh api \
+            "repos/$GITHUB_REPOSITORY/contents/build/live-iso.json?ref=main" \
+            --jq '.sha' 2>/dev/null || true)"
+
+          if [ -n "$CURRENT_SHA" ]; then
+            gh api --method PUT \
+              "repos/$GITHUB_REPOSITORY/contents/build/live-iso.json" \
+              -f message="ci: mark live ISO build running" \
+              -f content="$CONTENT" \
+              -f sha="$CURRENT_SHA" \
+              -f branch="main" >/dev/null
+          else
+            gh api --method PUT \
+              "repos/$GITHUB_REPOSITORY/contents/build/live-iso.json" \
+              -f message="ci: mark live ISO build running" \
+              -f content="$CONTENT" \
+              -f branch="main" >/dev/null
+          fi
+
       - name: Validate ISO scripts
         run: |
           docker run --rm \
@@ -141,28 +179,50 @@ jobs:
             --notes "Single x86_64 Alpine Linux 3.24 live ISO for webOwie_nodeOS. Network support is verified by booting the generated image in QEMU with a VirtIO NIC before publication." \
             --prerelease
 
-      - name: Record verified build provenance
+      - name: Record live ISO build result
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
         run: |
-          ISO_SHA256="$(cut -d' ' -f1 dist/webOwie_nodeOS-live-x86_64.iso.sha256)"
-          ISO_SIZE="$(stat -c '%s' dist/webOwie_nodeOS-live-x86_64.iso)"
-          BUILT_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          FINISHED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
-          cat >/tmp/live-iso.json <<EOF
+          if [ "$JOB_STATUS" = "success" ] && \
+             [ -s dist/webOwie_nodeOS-live-x86_64.iso ] && \
+             [ -s dist/webOwie_nodeOS-live-x86_64.iso.sha256 ]; then
+            ISO_SHA256="$(cut -d' ' -f1 dist/webOwie_nodeOS-live-x86_64.iso.sha256)"
+            ISO_SIZE="$(stat -c '%s' dist/webOwie_nodeOS-live-x86_64.iso)"
+            cat >/tmp/live-iso.json <<EOF
           {
             "product": "webOwie_nodeOS Live",
+            "status": "success",
             "alpine": "3.24",
             "architecture": "x86_64",
             "source_commit": "$GITHUB_SHA",
+            "workflow_run_id": "$GITHUB_RUN_ID",
+            "run_attempt": "$GITHUB_RUN_ATTEMPT",
             "iso": "webOwie_nodeOS-live-x86_64.iso",
             "sha256": "$ISO_SHA256",
             "size_bytes": $ISO_SIZE,
             "qemu_virtio_network_test": "passed",
-            "built_at_utc": "$BUILT_AT",
+            "finished_at_utc": "$FINISHED_AT",
             "release_tag": "live-latest"
           }
           EOF
+          else
+            cat >/tmp/live-iso.json <<EOF
+          {
+            "product": "webOwie_nodeOS Live",
+            "status": "failure",
+            "alpine": "3.24",
+            "architecture": "x86_64",
+            "source_commit": "$GITHUB_SHA",
+            "workflow_run_id": "$GITHUB_RUN_ID",
+            "run_attempt": "$GITHUB_RUN_ATTEMPT",
+            "finished_at_utc": "$FINISHED_AT"
+          }
+          EOF
+          fi
 
           CONTENT="$(base64 -w0 /tmp/live-iso.json)"
           CURRENT_SHA="$(gh api \
@@ -172,14 +232,14 @@ jobs:
           if [ -n "$CURRENT_SHA" ]; then
             gh api --method PUT \
               "repos/$GITHUB_REPOSITORY/contents/build/live-iso.json" \
-              -f message="ci: record verified live ISO build" \
+              -f message="ci: record live ISO build result" \
               -f content="$CONTENT" \
               -f sha="$CURRENT_SHA" \
               -f branch="main" >/dev/null
           else
             gh api --method PUT \
               "repos/$GITHUB_REPOSITORY/contents/build/live-iso.json" \
-              -f message="ci: record verified live ISO build" \
+              -f message="ci: record live ISO build result" \
               -f content="$CONTENT" \
               -f branch="main" >/dev/null
           fi
