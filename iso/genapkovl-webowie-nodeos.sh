@@ -28,15 +28,12 @@ makefile root:root 0644 "$tmp/etc/hostname" <<EOF_HOST
 $HOSTNAME
 EOF_HOST
 
-# eth0 is the normal Proxmox/QEMU name. webowie-net-prep below also discovers
-# and configures any differently named NIC before OpenRC networking starts.
+# Only configure loopback statically. The boot service below discovers the
+# actual Proxmox/QEMU interface name and adds DHCP configuration dynamically.
 mkdir -p "$tmp/etc/network"
 makefile root:root 0644 "$tmp/etc/network/interfaces" <<'EOF_NET'
 auto lo
 iface lo inet loopback
-
-auto eth0
-iface eth0 inet dhcp
 EOF_NET
 
 mkdir -p "$tmp/etc/apk"
@@ -94,6 +91,7 @@ start() {
         count=$((count + 1))
     done
 
+    configured=0
     for nicpath in /sys/class/net/*; do
         [ -e "$nicpath" ] || continue
         nic="${nicpath##*/}"
@@ -109,7 +107,13 @@ start() {
                 echo "iface $nic inet dhcp"
             } >> /etc/network/interfaces
         fi
+        configured=$((configured + 1))
     done
+
+    if [ "$configured" -eq 0 ]; then
+        eend 1 "No non-loopback network interface detected"
+        return 1
+    fi
 
     eend 0
 }
