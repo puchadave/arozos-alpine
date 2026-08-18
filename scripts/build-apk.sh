@@ -71,6 +71,26 @@ cat >'$WORK/runtime/vendor-res/upstream.json' <<EOF_UPSTREAM
 }
 EOF_UPSTREAM
 
+# The upstream web/system bundle can contain helper executables for multiple
+# CPU architectures. A native x86_64 Alpine package must not expose ARM or
+# other foreign ELF binaries to abuild dependency tracing.
+echo 'Scanning runtime for foreign-architecture ELF files'
+find '$WORK/runtime' -type f | while IFS= read -r candidate; do
+  desc=\$(file -b \"\$candidate\" 2>/dev/null || true)
+  case \"\$desc\" in
+    *ELF*)
+      case \"\$desc\" in
+        *x86-64*) ;;
+        *)
+          echo \"Removing non-x86_64 ELF: \$candidate (\$desc)\"
+          rm -f \"\$candidate\"
+          ;;
+      esac
+      ;;
+  esac
+done
+
+test -x '$WORK/runtime/webowie-nodeos'
 chmod 0755 '$WORK/runtime/webowie-nodeos'
 tar -C '$WORK' -czf '$WORK/pkg/webowie-nodeos-runtime.tar.gz' runtime
 
