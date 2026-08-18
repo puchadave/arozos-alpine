@@ -1,4 +1,4 @@
-name: Validate Alpine installer
+name: Validate webOwie_nodeOS
 
 on:
   push:
@@ -11,14 +11,19 @@ permissions:
 jobs:
   shell-syntax:
     runs-on: ubuntu-latest
-    container:
-      image: alpine:3.24
     steps:
-      - name: Install Git
-        run: apk add --no-cache git
-
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate POSIX shell syntax
-        run: sh -n installer/install-alpine-lxc.sh
+      - name: Validate scripts with Alpine /bin/sh
+        run: |
+          docker run --rm \
+            -v "$PWD:/repo:ro" \
+            alpine:3.24 \
+            /bin/sh -c '
+              set -eu
+              sh -n /repo/installer/install-webowie-nodeos.sh
+              sh -n /repo/installer/install-alpine-lxc.sh
+              sh -n /repo/branding/apply-branding.sh
+              sh -n /repo/scripts/update-webowie-nodeos.sh
+            '
