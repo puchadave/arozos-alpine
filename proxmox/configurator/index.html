@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>webOwie_nodeOS Proxmox Configurator</title>
+<style>
+:root{font-family:Inter,system-ui,sans-serif;color-scheme:dark}body{margin:0;background:#0b0d10;color:#f3f5f7}.wrap{max-width:980px;margin:auto;padding:32px 20px}h1{margin-bottom:6px}.sub{color:#aab2bd;margin-top:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}.card{background:#12161b;border:1px solid #27303a;border-radius:14px;padding:18px;margin:18px 0}label{display:block;font-size:13px;color:#b8c0ca;margin-bottom:5px}input{width:100%;box-sizing:border-box;background:#090c0f;color:#fff;border:1px solid #313c48;border-radius:9px;padding:11px}button{background:#fff;color:#000;border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer}pre{white-space:pre-wrap;word-break:break-word;background:#07090b;border:1px solid #27303a;border-radius:10px;padding:16px;min-height:74px}.hint{color:#8e99a6;font-size:13px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>webOwie_nodeOS</h1>
+  <p class="sub">Proxmox LXC Installation Generator</p>
+
+  <div class="card">
+    <div class="grid">
+      <div><label for="ctid">CTID (leer = automatisch)</label><input id="ctid" inputmode="numeric" placeholder="z. B. 120"></div>
+      <div><label for="hostname">Hostname (leer = automatisch)</label><input id="hostname" placeholder="webowie-nodeos-120"></div>
+      <div><label for="cores">CPU Cores</label><input id="cores" type="number" min="1" value="2"></div>
+      <div><label for="memory">RAM MiB</label><input id="memory" type="number" min="512" value="2048"></div>
+      <div><label for="swap">Swap MiB</label><input id="swap" type="number" min="0" value="512"></div>
+      <div><label for="disk">Disk GiB</label><input id="disk" type="number" min="4" value="8"></div>
+      <div><label for="bridge">Bridge</label><input id="bridge" value="vmbr0"></div>
+      <div><label for="ip">IP</label><input id="ip" value="dhcp" placeholder="dhcp oder 192.168.1.50/24"></div>
+      <div><label for="gateway">Gateway (nur statisch)</label><input id="gateway" placeholder="192.168.1.1"></div>
+      <div><label for="vlan">VLAN Tag (optional)</label><input id="vlan" inputmode="numeric"></div>
+      <div><label for="rootfs">RootFS Storage (leer = auto)</label><input id="rootfs" placeholder="local-lvm"></div>
+      <div><label for="templates">Template Storage (leer = auto)</label><input id="templates" placeholder="local"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row"><button id="generate">Befehl erzeugen</button><button id="copy">Kopieren</button></div>
+    <p class="hint">Auf dem Proxmox-Host als root ausführen. Keine Passwörter oder Secrets werden in den Befehl geschrieben.</p>
+    <pre id="command"></pre>
+  </div>
+</div>
+<script>
+const SCRIPT='https://raw.githubusercontent.com/puchadave/arozos-alpine/main/proxmox/webowie-nodeos.sh';
+const $=id=>document.getElementById(id);
+const q=v=>"'"+String(v).replaceAll("'", "'\\''")+"'";
+function generate(){
+  const vars={WEBOWIE_MODE:'generated',CTID:$('ctid').value.trim(),HOSTNAME:$('hostname').value.trim(),CORES:$('cores').value.trim(),MEMORY:$('memory').value.trim(),SWAP:$('swap').value.trim(),DISK:$('disk').value.trim(),BRIDGE:$('bridge').value.trim(),IP_CONFIG:$('ip').value.trim(),GATEWAY:$('gateway').value.trim(),VLAN_TAG:$('vlan').value.trim(),ROOTFS_STORAGE:$('rootfs').value.trim(),TEMPLATE_STORAGE:$('templates').value.trim()};
+  const env=Object.entries(vars).filter(([,v])=>v!=='').map(([k,v])=>`${k}=${q(v)}`).join(' ');
+  $('command').textContent=`curl -fsSL ${q(SCRIPT)} | env ${env} bash`;
+}
+$('generate').addEventListener('click',generate);
+$('copy').addEventListener('click',async()=>{generate();await navigator.clipboard.writeText($('command').textContent);$('copy').textContent='Kopiert';setTimeout(()=>$('copy').textContent='Kopieren',1200)});
+generate();
+</script>
+</body>
+</html>
