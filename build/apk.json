@@ -1,16 +1,10 @@
 {
   "product": "webOwie_nodeOS",
   "artifact": "webowie-nodeos-x86_64.apk",
-  "status": "success",
+  "status": "running",
   "alpine": "3.24",
   "architecture": "x86_64",
-  "package_version": "0.1.0_git20261126140750",
-  "source_commit": "a15c622a786882eee167cfb402294d8722c28a31",
-  "workflow_run_id": "45835867372",
-  "sha256": "ac01b03b637df32d923ee688716ae8fc019699de9bc1b7820113c352fa15d9de",
-  "size_bytes": 143870293,
-  "openrc_test": "passed",
-  "http_8080_test": "passed",
-  "release_tag": "apk-latest",
-  "finished_at_utc": "2026-11-26T14:10:43Z"
+  "source_commit": "bc90bf1408706e9828a1c64c4464a3743c62ee4a",
+  "workflow_run_id": "46012779626",
+  "started_at_utc": "2026-11-27T14:05:40Z"
 }
